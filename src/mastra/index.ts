@@ -10,6 +10,9 @@ const pgVector = new PgVector({
 export const mastra = new Mastra({
   agents: { berkshireAgent },
   vectors: { pgVector },
+  server: {
+    port: 4111,
+  },
 });
 
 
