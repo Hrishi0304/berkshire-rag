@@ -1,0 +1,34 @@
+{
+  "name": "berkshire-rag",
+  "version": "1.0.0",
+  "description": "Berkshire Hathaway Intelligence - RAG Agent powered by Mastra + Ollama",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/server.ts",
+    "mastra:dev": "mastra dev --dir src/mastra",
+    "ingest": "tsx --env-file=.env src/scripts/ingest.ts",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:reset": "docker compose down -v && docker compose up -d",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@ai-sdk/groq": "^3.0.39",
+    "@ai-sdk/openai": "^3.0.64",
+    "@fastify/cors": "^11.2.0",
+    "@mastra/core": "latest",
+    "@mastra/fastify": "latest",
+    "@mastra/pg": "latest",
+    "@mastra/rag": "latest",
+    "ai": "latest",
+    "fastify": "^5.8.5",
+    "pdf-parse": "^1.1.4"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/pdf-parse": "^1.1.5",
+    "mastra": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}
