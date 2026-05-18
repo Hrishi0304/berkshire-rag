@@ -1,6 +1,7 @@
 import Fastify, { FastifyError } from 'fastify';
 import cors from '@fastify/cors';
-import { MastraServer } from '@mastra/fastify';   // ✅ Key import
+import rateLimit from '@fastify/rate-limit'; 
+import { MastraServer } from '@mastra/fastify';
 import { mastra } from './mastra/index.js';
 import { chatRoutes } from './routes/chat.routes.js';
 import { sendError } from './utils/api-response.js';
@@ -8,14 +9,23 @@ import { AppError } from './utils/api-error.js';
 
 const fastify = Fastify({ logger: true });
 
-await fastify.register(cors, { origin: '*' });
+await fastify.register(cors, { 
+  origin: [
+    'https://hrishi0304.github.io', 
+    'http://localhost:5500',        
+    'http://localhost:5173',        
+    'http://localhost:3000'       
+  ]
+});
 
-// ✅ Mount Mastra INSIDE your Fastify app
-// This registers /api/agents, /api/workflows etc. on this same server
+await fastify.register(rateLimit, {
+  max: 15,
+  timeWindow: '1 minute'
+});
+
 const mastraServer = new MastraServer({ app: fastify, mastra });
 await mastraServer.init();
 
-// ✅ Your own custom routes come AFTER mastra init
 await fastify.register(chatRoutes, { prefix: '/api' });
 
 fastify.setErrorHandler((error: FastifyError, request, reply) => {
