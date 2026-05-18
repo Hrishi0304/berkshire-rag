@@ -5,23 +5,28 @@ import * as fs from 'fs';
 import * as path from 'path';
 import pdfParse from 'pdf-parse';
 
-// ✅ Direct Ollama native embed — bypasses the broken /v1/embeddings path
+// ✅ Hugging Face Serverless Inference API — 100% Free Cloud Embeddings
 async function embedTexts(texts: string[]): Promise<number[][]> {
-  const response = await fetch('http://localhost:11434/api/embed', {
-    method: 'POST',
-    body: JSON.stringify({
-      model: 'nomic-embed-text',
-      input: texts,
-    }),
-  });
+  const response = await fetch(
+    'https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.HF_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        inputs: texts,
+      }),
+    }
+  );
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`Ollama embed API failed: ${response.status} — ${err}`);
+    throw new Error(`Hugging Face embed API failed: ${response.status} — ${err}`);
   }
 
-  const data = await response.json() as { embeddings: number[][] };
-  return data.embeddings;
+  return await response.json() as number[][];
 }
 
 async function ingestLetters() {
@@ -40,7 +45,7 @@ async function ingestLetters() {
 
   await pgVector.createIndex({
     indexName: 'berkshire_letters',
-    dimension: 768,   // nomic-embed-text = 768 dims
+    dimension: 384,   // sentence-transformers/all-MiniLM-L6-v2 = 384 dims
     buildIndex: false,
   });
   console.log('   ✅ Fresh index created');

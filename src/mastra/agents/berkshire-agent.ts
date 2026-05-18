@@ -3,31 +3,37 @@ import { createVectorQueryTool } from '@mastra/rag';
 import { type EmbeddingModel } from 'ai';
 import { groqChat } from '../ollama';
 
-const nomicEmbedModel = {
+const hfEmbedModel = {
   specificationVersion: 'v2' as const,
-  provider: 'ollama',
-  modelId: 'nomic-embed-text',
+  provider: 'huggingface',
+  modelId: 'sentence-transformers/all-MiniLM-L6-v2',
   maxEmbeddingsPerCall: 100,
   supportsParallelCalls: false,
 
   async doEmbed({ values }: { values: string[] }) {
-    const response = await fetch('http://localhost:11434/api/embed', {
-      method: 'POST',
-      body: JSON.stringify({
-        model: 'nomic-embed-text',
-        input: values,
-      }),
-    });
+    const response = await fetch(
+      'https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.HF_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inputs: values,
+        }),
+      }
+    );
 
     if (!response.ok) {
       const err = await response.text();
-      throw new Error(`Ollama embed failed: ${response.status} — ${err}`);
+      throw new Error(`Hugging Face embed failed: ${response.status} — ${err}`);
     }
 
-    const data = await response.json() as { embeddings: number[][] };
+    const embeddings = await response.json() as number[][];
 
     return {
-      embeddings: data.embeddings,
+      embeddings,
       usage: { tokens: 0 },
     };
   },
@@ -37,7 +43,7 @@ const nomicEmbedModel = {
 const berkshireTool = createVectorQueryTool({
   vectorStoreName: 'pgVector',
   indexName: 'berkshire_letters',
-  model: nomicEmbedModel,
+  model: hfEmbedModel,
 });
 
 export const berkshireAgent = new Agent({
