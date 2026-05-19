@@ -2,7 +2,7 @@
 
 A sophisticated Retrieval-Augmented Generation (RAG) agent designed to analyze and answer complex questions about Warren Buffett's investment philosophy, business strategies, and financial metrics using historical Berkshire Hathaway annual shareholder letters (1977-2024).
 
-This system is built using **Mastra** (an agentic framework), **Fastify** (a high-performance Node.js API server), **pgvector** (for vector storage and similarity search), **Ollama** (for local text embeddings), and **Groq** (for fast cloud-based LLM reasoning).
+This system is built using **Mastra** (an agentic framework), **Fastify** (a high-performance Node.js API server), **Neon Cloud PostgreSQL with pgvector** (for cloud vector storage and similarity search), **Hugging Face Serverless Inference API** (for cloud-based text embeddings), **Groq Cloud** (for fast cloud-based LLM reasoning), and **Upstash Redis** (for high-performance rate limiting and caching).
 
 ---
 
@@ -10,30 +10,58 @@ This system is built using **Mastra** (an agentic framework), **Fastify** (a hig
 
 - **Primary Framework:** [Mastra](https://mastra.ai/)
 - **API Server:** [Fastify](https://fastify.dev/)
-- **Vector Database:** [PostgreSQL with pgvector](https://github.com/pgvector/pgvector)
-- **Local Embeddings:** [Ollama](https://ollama.com/) (using `nomic-embed-text`)
+- **Vector Database:** [Neon PostgreSQL with pgvector](https://neon.tech/) (Cloud vector database)
+- **Cloud Embeddings:** [Hugging Face Serverless Inference API](https://huggingface.co/docs/api-inference/index) (using `sentence-transformers/all-MiniLM-L6-v2` - 384 dimensions)
 - **LLM Provider:** [Groq Cloud](https://console.groq.com/) (using `llama-3.3-70b-versatile`)
+- **Cache & Rate Limiting:** [Upstash Redis](https://upstash.com/) (Serverless Redis)
 - **Language & Runtime:** TypeScript / Node.js (via `tsx`)
 
 ---
 
-## ⚙️ Prerequisites
+## ⚙️ Prerequisites & Setup
 
-Before running this project, you must have the following installed on your machine:
+Unlike earlier versions of this project, you **no longer** need to install Docker or run local Ollama embedding models on your machine. All database, embedding, and LLM services are cloud-hosted for optimal speed, reliability, and ease of deployment.
 
-1. **Docker & Docker Compose** (for running the pgvector database)
-2. **Node.js** (v18+ recommended)
-3. **Ollama** (for running local text embeddings)
+### Required Software
+1. **Node.js** (v18+ recommended)
+2. **NPM** (or pnpm/yarn)
 
-### 🧠 Embedding Model Setup (Ollama)
-To run the ingestion pipeline, download local Ollama and fetch the embedding model:
+---
 
-1. [Download and install Ollama](https://ollama.com/).
-2. Start Ollama on your machine.
-3. Open a terminal and run the following command to download the required embedding model:
-   ```bash
-   ollama pull nomic-embed-text
-   ```
+## 🔑 Environment Configuration
+
+The application requires several API keys and connection strings to interact with the cloud services. A template file `.env.example` is provided in the project root.
+
+### Step 1: Create your environment file
+Copy the `.env.example` template to create your own `.env` file:
+```bash
+cp .env.example .env
+```
+
+### Step 2: Fill in the credentials
+Open `.env` and configure the following variables:
+
+```ini
+# Server Port
+PORT=3000
+
+# PostgreSQL Vector Database
+# Get a free connection string from Neon (https://neon.tech/) with pgvector pre-installed
+DATABASE_URL=postgresql://<username>:<password>@<hostname>/<dbname>?sslmode=require
+
+# LLM Provider - Groq Cloud API
+# Generate a free, high-speed LLM key at Groq Console (https://console.groq.com/)
+GROQ_API_KEY=your_groq_api_key_here
+
+# Embeddings - Hugging Face Serverless Inference API Key
+# Create a free API token in Hugging Face settings (https://huggingface.co/settings/tokens)
+HF_API_KEY=your_hugging_face_api_key_here
+
+# Cache & Storage - Upstash Redis
+# Create a free serverless Redis database at Upstash Console (https://console.upstash.com/)
+UPSTASH_REDIS_REST_URL=your_upstash_redis_rest_url_here
+UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_rest_token_here
+```
 
 ---
 
@@ -42,34 +70,29 @@ To run the ingestion pipeline, download local Ollama and fetch the embedding mod
 Follow these step-by-step commands to get the Berkshire RAG application running on your local machine:
 
 ### 1. Install Dependencies
-Install the required node modules:
+Install the required Node.js modules:
 ```bash
 npm install
 ```
 
-### 2. Start pgvector Database
-Spin up a fresh PostgreSQL container with the `pgvector` extension enabled (make sure no conflicting services are on port `5432`):
-```bash
-npm run docker:up
-```
-*Wait ~10 seconds for the database container to become healthy and ready for connections.*
+### 2. Configure Environment
+Ensure your `.env` file is populated with valid keys as explained in the **Environment Configuration** section.
 
 ### 3. Add PDF letters to `/letters` folder
-Create the `letters` directory if it does not exist, and copy your annual Berkshire Hathaway PDF shareholder letters (from 2019 to 2024) into it:
+Create the `letters` directory if it does not exist, and copy your annual Berkshire Hathaway PDF shareholder letters (from 1977 to 2024, or a subset like 2019 to 2024) into it:
 ```bash
-# Create the directory
 mkdir -p letters
 ```
 *Ensure your PDFs (e.g., `2019.pdf`, `2020.pdf`, etc.) are placed inside the `/letters` folder.*
 
 ### 4. Run Ingestion Pipeline
-Embed all PDF letters and ingest the vectorized chunks into PostgreSQL:
+Parse the PDF letters, chunk their contents, generate 384-dimensional embeddings via Hugging Face, and store them directly in your Neon Cloud Database:
 ```bash
 npm run ingest
 ```
 *Upon successful ingestion, you will see:*
 ```bash
-✅ All letters ingested!
+✅ Ingestion complete!
 ```
 
 ### 5. Start the Fastify Server
@@ -82,7 +105,7 @@ npm run dev
 - **Mastra Agents endpoint:** `http://localhost:3000/api/agents`
 
 ### 6. Start the Mastra Studio Dashboard
-In a **SEPARATE** terminal, start the Mastra visual developer playground:
+In a **separate** terminal, start the Mastra visual developer playground:
 ```bash
 npm run mastra:dev
 ```
@@ -90,7 +113,7 @@ npm run mastra:dev
 - **Mastra API:** `http://localhost:4111/api`
 
 > [!NOTE]
-> Since the Fastify server runs on `http://localhost:3000`, the Mastra dev server is configured to run on `http://localhost:4111` to prevent port collisions. This configuration is defined in the `src/mastra/index.ts` file under the `server` block.
+> The Fastify server runs on `http://localhost:3000`, and the Mastra dev server is configured to run on `http://localhost:4111` to prevent port collisions. This configuration is defined in the `src/mastra/index.ts` file under the `server` block.
 
 ---
 
@@ -110,15 +133,18 @@ The agent is defined in `src/mastra/agents/berkshire-agent.ts` with custom syste
 ├── .mastra/             # Auto-generated Mastra build outputs
 ├── letters/             # Place your Berkshire annual PDFs here (e.g. 1977-2024)
 ├── src/
+│   ├── controllers/     # Route controller logic
 │   ├── mastra/
 │   │   ├── agents/      # Mastra Agent definitions (berkshire-agent.ts)
 │   │   ├── index.ts     # Mastra initialization & PG configuration (Server Port 4111)
-│   │   └── ollama.ts    # Custom Ollama embedder & Groq LLM setup
+│   │   └── ollama.ts    # Groq LLM setup
 │   ├── routes/          # Fastify route definitions (chat.routes.ts)
-│   ├── scripts/         # Ingestion scripts (ingest.ts)
+│   ├── schemas/         # Request validation schemas (chat.schema.ts)
+│   ├── scripts/         # Ingestion scripts (ingest.ts using Hugging Face Embeddings)
+│   ├── services/        # Business logic services
 │   ├── utils/           # Shared API response and error utilities
-│   └── server.ts        # Fastify main entry point (Server Port 3000)
-├── docker-compose.yml   # PostgreSQL + pgvector configuration
+│   └── server.ts        # Fastify main entry point (Server Port 3000, Cors, Rate-Limiting)
+├── .env.example         # Environment template file
 ├── package.json         # NPM scripts and dependencies
 └── tsconfig.json        # TypeScript configuration
 ```
