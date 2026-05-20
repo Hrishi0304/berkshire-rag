@@ -21,6 +21,8 @@
     "@mastra/fastify": "latest",
     "@mastra/pg": "latest",
     "@mastra/rag": "latest",
+    "@upstash/redis": "^1.38.0",
+    "@upstash/vector": "^1.2.3",
     "ai": "latest",
     "fastify": "^5.8.5",
     "pdf-parse": "^1.1.4"
