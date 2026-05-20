@@ -1,10 +1,13 @@
 import {Redis} from '@upstash/redis';
-const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
-const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+const rawRedisUrl = process.env.UPSTASH_REDIS_REST_URL;
+const rawRedisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
-if(!redisUrl || !redisToken){
+if(!rawRedisUrl || !rawRedisToken){
     throw new Error('Redis credentials are missing from .env');
 }
+
+const redisUrl = rawRedisUrl.replace(/^['"]|['"]$/g, '');
+const redisToken = rawRedisToken.replace(/^['"]|['"]$/g, '');
 
 export class RedisCacheService {
     private static redis = new Redis({
